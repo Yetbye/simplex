@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simplex Flow Matching｜路演：把生成模型从两分布传输推广到多分布动力学</title>
+<style>
+:root{
+  --paper:#faf9f6; --ink:#243444; --ink2:#5b6c78; --muted:#8a979d;
+  --blue:#174e73; --teal:#3e8c86; --red:#d7534b; --gold:#c59a55;
+  --violet:#7b6aa9; --line:#d9e1df; --shadow:0 18px 48px rgba(35,59,73,.12);
+  --serif:"Noto Serif SC","Songti SC",Georgia,serif;
+  --sans:"Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono",Consolas,monospace;
+  --math:"Cambria Math","STIX Two Math","Times New Roman",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;background:var(--paper)}
+body{background:radial-gradient(circle at 85% 4%,#e7f0ef 0,transparent 28%),var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1240px;margin:auto;padding:0 32px}
+.topbar{position:fixed;z-index:20;top:0;left:0;right:0;height:60px;background:rgba(250,249,246,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(217,225,223,.85)}
+.topbar .wrap{height:100%;display:flex;align-items:center;justify-content:space-between}
+.brand{font-family:var(--serif);font-weight:700}.brand b{color:var(--red)}
+.nav{display:flex;gap:16px;font-size:12px;color:var(--ink2);letter-spacing:.05em}
+.nav a{transition:.25s}.nav a:hover,.nav a.on{color:var(--red)}
+/* ---- Hero ---- */
+.hero{min-height:760px;padding:140px 0 70px;display:grid;grid-template-columns:1.02fr .98fr;gap:52px;align-items:center;position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;width:430px;height:430px;border-radius:50%;background:#dbece8;right:-130px;top:110px;opacity:.6;filter:blur(5px)}
+.eyebrow,.kicker{font-family:var(--mono);font-size:12px;color:var(--red);letter-spacing:.18em;text-transform:uppercase}
+.hero h1{font-family:var(--serif);font-size:clamp(40px,5.6vw,72px);line-height:1.14;margin:16px 0 22px;letter-spacing:-.03em}
+.hero h1 em{font-style:normal;color:var(--blue);position:relative}
+.hero h1 em:after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:7px;background:#d9e7e4;z-index:-1;border-radius:999px}
+.claim{display:flex;gap:0;margin:22px 0 18px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;max-width:640px}
+.claim div{flex:1;padding:14px 10px;text-align:center}
+.claim div+div{border-left:1px solid var(--line)}
+.claim .big{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--blue)}
+.claim .small{font-size:12px;color:var(--ink2);margin-top:2px}
+.lead{font-size:18px;color:var(--ink2);max-width:620px;line-height:1.9}
+.pitch-for{margin-top:18px;font-size:13px;color:var(--muted)}
+.pitch-for b{color:var(--ink)}
+.hero-visual{position:relative;z-index:1;background:rgba(255,255,255,.65);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:22px;padding:18px}
+.hero-visual svg{width:100%;height:auto;display:block}
+.hero-visual .caption{font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
+/* ---- Sections ---- */
+.section{padding:84px 0;border-top:1px solid var(--line)}
+.sec-head{margin-bottom:8px}
+.sec-head .kicker{display:block;margin-bottom:8px}
+.section h2{font-family:var(--serif);font-size:clamp(28px,3.6vw,44px);line-height:1.22;letter-spacing:-.02em}
+.section h2 span{color:var(--red);font-family:var(--mono);font-size:15px;letter-spacing:.08em;margin-right:10px}
+.takeaway{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(90deg,#fdf4ec,#faf9f6);border-left:4px solid var(--gold);padding:13px 18px;border-radius:0 12px 12px 0;margin:20px 0 30px}
+.takeaway .tk{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--gold);padding-top:3px;white-space:nowrap}
+.takeaway p{font-size:16px;color:var(--ink);line-height:1.7}
+.takeaway p b{color:var(--red)}
+/* ---- math ---- */
+.eq{font-family:var(--math);color:var(--blue);text-align:center;line-height:2.05;overflow-x:auto}
+.eq .accent{color:var(--red);font-weight:700}
+.eq .green{color:#247a61;font-weight:700}
+.eq small{font-family:var(--sans);font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.formula{margin-top:14px;background:#eff4f3;border:1px solid #d5e4e0;border-radius:10px;padding:13px 16px}
+.formula.good{background:#eef5f0;border-color:#cfe3d6}
+.formula.warn{background:#fbf1ec;border-color:#efd4c8}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 4px;line-height:1.15}
+.frac>.n{border-bottom:1.5px solid currentColor;padding:0 6px 1px}
+.frac>.d{padding:1px 6px 0}
+sub,sup{font-size:.68em}
+.math-panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px 28px;box-shadow:0 10px 28px rgba(35,59,73,.06);margin-top:20px}
+.math-title{font-family:var(--serif);font-size:22px;color:var(--blue);margin-bottom:12px}
+.math-steps{display:grid;gap:4px}
+.math-step{display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:center}
+.math-step .no{width:26px;height:26px;border-radius:50%;background:#eaf1f0;color:var(--blue);display:grid;place-items:center;font-family:var(--mono);font-size:12px}
+.math-step .tx{font-family:var(--math);font-size:20px;color:var(--blue);padding:8px 0;border-bottom:1px dashed #dce5e3}
+.math-step:last-child .tx{border-bottom:0}
+.math-step .tx .why{font-family:var(--sans);font-size:13px;color:var(--ink2);display:block;margin-top:1px}
+.proof-strip{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:15px 14px;border-radius:12px;background:#f2f7f5;color:var(--blue);font-family:var(--math);font-size:19px;margin-top:18px}
+.proof-strip .arrow{color:var(--red);font-family:var(--sans);font-weight:700}
+.proof-strip .accent{color:var(--red);font-weight:700}
+.proof-strip .green{color:#247a61;font-weight:700}
+/* ---- cards / grids ---- */
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.card{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 8px 24px rgba(35,59,73,.05);position:relative;overflow:hidden}
+.card:before{content:"";position:absolute;left:0;top:0;width:4px;height:100%;background:var(--blue)}
+.card.red:before{background:var(--red)}.card.teal:before{background:var(--teal)}.card.gold:before{background:var(--gold)}.card.violet:before{background:var(--violet)}
+.card h3{font-family:var(--serif);font-size:21px;margin-bottom:9px}
+.card p{font-size:14.5px;color:var(--ink2);line-height:1.75}
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.badge{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:6px;background:#eef4f3;color:var(--blue)}
+.badge.bad{background:#fdeeea;color:#a5483f}
+.badge.good{background:#e9f4ee;color:#1e765a}
+.note{margin-top:22px;padding:16px 20px;border:1px dashed #b9ccc8;background:#f3f7f5;border-radius:12px;color:var(--ink2);font-size:14px;line-height:1.8}
+.note strong{color:var(--red)}
+/* ---- figures ---- */
+.figure{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 28px rgba(35,59,73,.07)}
+.figure img{width:100%;display:block;border-radius:10px}
+.figure figcaption{font-size:13px;color:var(--ink2);padding:10px 6px 2px;line-height:1.6}
+.figure figcaption b{color:var(--blue)}
+.figure .role{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:#fff;background:var(--teal);border-radius:4px;padding:2px 7px;margin-bottom:6px;text-transform:uppercase}
+/* ---- ops ---- */
+.ops{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+.op{border:1px solid var(--line);background:#fff;border-radius:14px;padding:20px}
+.op .tag{font-family:var(--mono);font-size:11px;color:var(--red);margin-bottom:6px;letter-spacing:.1em}
+.op h3{font-family:var(--serif);font-size:20px}
+.op p{font-size:13.5px;color:var(--ink2);margin-top:6px;line-height:1.7}
+.op .mini{margin-top:12px;color:var(--blue);font-family:var(--math);font-size:19px;text-align:center;background:#f0f5f4;border-radius:8px;padding:8px}
+/* ---- metrics ---- */
+.metric-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;border-top:4px solid var(--blue)}
+.metric-card h4{font-family:var(--mono);font-size:14px;color:var(--blue);margin-bottom:6px}
+.metric-card .def{font-family:var(--math);font-size:18px;color:var(--ink);text-align:center;padding:8px 4px;background:#f5f8f7;border-radius:8px;overflow-x:auto}
+.metric-card p{font-size:13px;color:var(--ink2);margin-top:9px;line-height:1.7}
+.metric-card p b{color:var(--ink)}
+.hero-num{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0}
+.hn{border-radius:14px;padding:18px;color:#fff}
+.hn:nth-child(1){background:var(--blue)}.hn:nth-child(2){background:var(--teal)}.hn:nth-child(3){background:var(--red)}.hn:nth-child(4){background:var(--violet)}
+.hn .num{font-family:var(--serif);font-size:32px;font-weight:700;line-height:1.1}
+.hn .lb{font-size:12px;opacity:.9;margin-top:6px}
+.hn .ds{font-size:11.5px;opacity:.78;margin-top:3px}
+.compare{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:14px;margin-top:20px}
+.compare th,.compare td{padding:13px 15px;text-align:left;border-bottom:1px solid var(--line)}
+.compare th{background:#eff4f3;color:var(--ink2);font-size:12px;letter-spacing:.05em}
+.compare tr:last-child td{border-bottom:0}
+.compare td:not(:first-child){font-family:var(--mono);font-size:13px}
+.win{color:#227a5e;font-weight:700}
+.no{color:#a5483f;font-weight:700}
+/* ---- final ---- */
+.final{background:linear-gradient(135deg,#123f5e 0%,#1b6071 55%,#3e8c86 100%);color:#fff;border-top:0}
+.final .kicker{color:#f5c978}
+.final h2{color:#fff}
+.final .lead{color:#d9e9e7}
+.final-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:start;margin-top:26px}
+.final-list{display:grid;gap:11px}
+.final-list div{padding:13px 15px;border:1px solid rgba(255,255,255,.22);border-radius:10px;background:rgba(255,255,255,.08);font-size:15px}
+.final-list b{color:#f7d18b}
+.roadmap{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:18px;padding:24px}
+.roadmap h3{font-family:var(--serif);font-size:22px;margin-bottom:12px}
+.roadmap li{list-style:none;padding:9px 0 9px 24px;border-bottom:1px solid rgba(255,255,255,.16);position:relative;color:#d9e9e7;font-size:14px}
+.roadmap li:before{content:"→";position:absolute;left:0;color:#f7d18b}
+.roadmap li:last-child{border:0}
+.one-line{margin-top:34px;text-align:center;font-family:var(--serif);font-size:clamp(22px,3vw,34px);color:#f7d18b;letter-spacing:.02em}
+/* ---- upgrades: progress bar / reveal / flow / sim / qa ---- */
+#pbar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--red),var(--gold));z-index:99;transition:width .1s linear}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
+.reveal.in{opacity:1;transform:none}
+.flow{stroke-dasharray:10 8;animation:flowdash 1.6s linear infinite}
+@keyframes flowdash{to{stroke-dashoffset:-36}}
+.sim{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 28px rgba(35,59,73,.07);padding:22px;margin-top:22px;display:grid;grid-template-columns:340px 1fr;gap:26px;align-items:center}
+.sim svg{width:100%;height:auto;display:block}
+.sim-controls{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.sim-controls button{font-family:var(--mono);font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:#f5f8f7;color:var(--blue);cursor:pointer;transition:.25s}
+.sim-controls button:hover{border-color:var(--red);color:var(--red);transform:translateY(-2px)}
+.sim-controls button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sim-controls button.play.on{background:var(--red);border-color:var(--red);color:#fff}
+.sim-slider{width:100%;accent-color:var(--red);margin-top:14px}
+.sim-t{font-family:var(--mono);font-size:13px;color:var(--red);min-width:52px;text-align:right}
+.wbars{display:grid;gap:10px}
+.wbar .wl{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);font-family:var(--mono);margin-bottom:3px}
+.wbar .wt{height:14px;border-radius:7px;background:#eef2f1;overflow:hidden}
+.wbar .wf{height:100%;width:0;border-radius:7px;transition:width .08s linear}
+.sim-eq{font-family:var(--math);font-size:19px;color:var(--blue);text-align:center;margin-top:14px;padding:10px;background:#f0f5f4;border-radius:10px}
+.sim-eq b{color:var(--red)}
+@media print{
+  .topbar,#pbar{display:none}
+  body{background:#fff}
+  .section{padding:28px 0;page-break-inside:avoid}
+  .hero{min-height:auto;padding:40px 0 24px}
+  .reveal{opacity:1!important;transform:none!important}
+  .final{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+.footer{padding:26px 0;text-align:center;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+@media(max-width:900px){.nav{display:none}.hero,.final-grid{grid-template-columns:1fr}.hero{padding-top:110px}.grid3,.ops{grid-template-columns:1fr}.grid2,.grid4{grid-template-columns:1fr}.hero-num{grid-template-columns:1fr 1fr}.wrap{padding:0 20px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="pbar"></div>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="#top">Simplex <b>Flow Matching</b></a>
+  <nav class="nav">
+    <a href="#problem">01 问题</a><a href="#framework">02 框架</a><a href="#generalize">03 推广</a>
+    <a href="#method">04 方法</a><a href="#evidence">05 实验</a><a href="#metrics">06 指标</a><a href="#impact">07 里程碑</a>
+  </nav>
+</div></header>
+
+<main id="top">
+<!-- ================= HERO ================= -->
+<section class="hero wrap">
+  <div>
+    <div class="eyebrow">数学建模路演 · 2026</div>
+    <h1>把生成模型的<br><em>两点传输</em>，<br>推广为多分布动力学</h1>
+    <div class="claim">
+      <div><div class="big">1 个</div><div class="small">统一速度场</div></div>
+      <div><div class="big">K 个</div><div class="small">分布顶点</div></div>
+      <div><div class="big">3 类</div><div class="small">生成运算</div></div>
+    </div>
+    <p class="lead">Flow Matching 是 Flux、Seedance 等生成模型的数学内核，但它只在<strong>两个分布之间</strong>定义概率路径。我们把它推广到 <strong>K 个分布张成的单纯形</strong>上：同一个速度场，同时完成两两传输 A→B、合流 A+B→C、分流 A→B+C。</p>
+    <div class="pitch-for"><b>路演主张：</b>这不是又一次模型变大，而是生成模型数学对象的升维——从线段到单纯形。</div>
+  </div>
+  <div class="hero-visual">
+    <svg viewBox="0 0 620 430" role="img" aria-label="从两分布路径到单纯形路径">
+      <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="#d7534b"/></marker></defs>
+      <rect x="16" y="20" width="250" height="380" rx="18" fill="#f3f7f5" stroke="#d9e1df"/><rect x="354" y="20" width="250" height="380" rx="18" fill="#eef4f4" stroke="#d9e1df"/>
+      <text x="42" y="58" fill="#43535f" font-size="15" font-weight="700" font-family="Arial,'Microsoft YaHei',sans-serif" letter-spacing="1">CLASSICAL · 1-to-1</text><text x="368" y="58" fill="#174e73" font-size="15" font-weight="700" font-family="Arial,'Microsoft YaHei',sans-serif" letter-spacing="1">OURS · K DISTRIBUTIONS</text>
+      <circle cx="74" cy="309" r="15" fill="#d7534b"/><circle cx="206" cy="309" r="15" fill="#3e8c86"/><path class="flow" d="M90 309 C125 245 164 245 190 309" fill="none" stroke="#d7534b" stroke-width="4" marker-end="url(#arr)"/><text x="62" y="342" font-size="16">A</text><text x="198" y="342" font-size="16">B</text>
+      <text x="88" y="176" fill="#5b6c78" font-size="14">一维时间轴 t</text><path d="M72 206 H205" stroke="#174e73" stroke-width="3"/><circle cx="137" cy="206" r="7" fill="#d7534b"/>
+      <text x="52" y="104" font-size="17" font-family="Cambria Math,Georgia,serif">dX<tspan baseline-shift="sub" font-size="12">t</tspan> = u<tspan baseline-shift="sub" font-size="12">t</tspan>(X<tspan baseline-shift="sub" font-size="12">t</tspan>)dt</text>
+      <path d="M404 320 L555 320 L480 108 Z" fill="#fff" stroke="#174e73" stroke-width="3"/><circle cx="404" cy="320" r="14" fill="#d7534b"/><circle cx="555" cy="320" r="14" fill="#3e8c86"/><circle cx="480" cy="108" r="14" fill="#c59a55"/>
+      <path class="flow" d="M421 315 C460 290 500 270 544 315" fill="none" stroke="#d7534b" stroke-width="3" marker-end="url(#arr)"/><path class="flow" d="M420 312 C440 260 463 188 477 125" fill="none" stroke="#d7534b" stroke-width="3" marker-end="url(#arr)"/><path class="flow" d="M555 302 C540 260 507 180 488 124" fill="none" stroke="#d7534b" stroke-width="3" marker-end="url(#arr)"/>
+      <text x="394" y="353" font-size="15">A</text><text x="550" y="353" font-size="15">B</text><text x="475" y="82" font-size="15">C</text>
+      <text x="408" y="172" fill="#174e73" font-size="14" font-weight="700">A+B→C</text><text x="422" y="206" fill="#174e73" font-size="14" font-weight="700">A→B+C</text>
+      <text x="424" y="248" fill="#5b6c78" font-size="13" font-family="Cambria Math">c<tspan baseline-shift="sub" font-size="10">t</tspan> ∈ Δ<tspan baseline-shift="super" font-size="10">K−1</tspan></text>
+    </svg>
+    <div class="caption">经典 FM 活在一条线段上；我们把它搬到整个单纯形</div>
+  </div>
+</section>
+
+<!-- ================= 01 PROBLEM ================= -->
+<section id="problem" class="section"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 01 · Problem</span><h2><span>01</span>两两传输，是生成模型的天花板吗？</h2></div>
+  <div class="takeaway"><span class="tk">TAKEAWAY</span><p>现有流匹配 / 扩散模型的概率路径只有<b>两个端点</b>。要覆盖 K 个分布之间的所有转换，需要 K(K−1) 个独立网络，而且 <b>A+B→C 这类多分布运算在原理上就无法表达</b>。</p></div>
+  <div class="grid3">
+    <article class="card red"><h3>路径只有两个端点</h3><p>条件概率路径 p<sub>t</sub>(x|z) 从 p<sub>init</sub> 走到 δ<sub>z</sub>，时间轴是一维的。整个数学框架从定义上就只描述「一个源 → 一个目标」。</p></article>
+    <article class="card"><h3>网络数量二次爆炸</h3><p>K 个模态互相生成需要 K(K−1) 条有向边。K=3 时是 6 个独立 FM；K=10 时是 90 个——参数、存储、调度全部二次增长。</p><div class="badge-row"><span class="badge bad">K=3 → 6 个网络</span><span class="badge bad">K=10 → 90 个网络</span></div></article>
+    <article class="card gold"><h3>组合运算无法表达</h3><p>两个模态共同决定第三个模态（A+B→C）、一个模态分裂为多个（A→B+C）：这类运算没有「边」可以承载，逐对 FM 无解。</p><div class="badge-row"><span class="badge bad">不在逐对框架的表达域内</span></div></article>
+  </div>
+  <div class="note"><strong>落地动机：</strong>图像三模态（enhanced / lowlight / mask）互相生成、多传感器融合生成、多视角一致性——这些都是天然的多分布问题，现在只能靠工程拼接绕过去。</div>
+</div></section>
+
+<!-- ================= 02 FRAMEWORK ================= -->
+<section id="framework" class="section"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 02 · Foundation</span><h2><span>02</span>基础数学框架：一条概率路径 + 一个向量场</h2></div>
+  <div class="takeaway"><span class="tk">TAKEAWAY</span><p>生成 = 让分布随时间演化。Flow Matching 把它变成一个<b>可监督的回归问题</b>：在已知概率路径上，回归每个时刻的真实速度。</p></div>
+  <div class="grid3">
+    <article class="card"><h3>ODE：确定性演化</h3>
+      <div class="formula"><div class="eq"><span class="frac"><span class="n">dX<sub>t</sub></span><span class="d">dt</span></span> = u<sub>t</sub>(X<sub>t</sub>)<small>Euler 积分：X<sub>t+h</sub> = X<sub>t</sub> + h·u<sub>t</sub>(X<sub>t</sub>)</small></div></div>
+      <p>给定速度场，粒子沿确定性轨迹从噪声流到数据。</p></article>
+    <article class="card teal"><h3>SDE：含噪声演化</h3>
+      <div class="formula"><div class="eq">dX<sub>t</sub> = u<sub>t</sub>(X<sub>t</sub>)dt + σ<sub>t</sub> dW<sub>t</sub><small>Euler–Maruyama：+ √h·σ<sub>t</sub>·ε<sub>t</sub>，噪声尺度是 √h 而非 h</small></div></div>
+      <p>扩散模型属于这一支；朗之万动力学是其特例。</p></article>
+    <article class="card gold"><h3>FM：直接回归速度</h3>
+      <div class="formula"><div class="eq">ℒ<sub>FM</sub>(θ) = 𝔼<sub>z,ε</sub> ‖u<sub>θ</sub>(x<sub>t</sub>, t) − U<sub>t</sub><sup>target</sup>(x<sub>t</sub>|z)‖²</div></div>
+      <p>不需要显式求解边缘后验——条件目标即可采样。</p></article>
+  </div>
+  <div class="math-panel">
+    <div class="math-title">Flow Matching 的四步构造（高斯线性路径）</div>
+    <div class="math-steps">
+      <div class="math-step"><div class="no">1</div><div class="tx">x<sub>t</sub> = t·z + (1−t)·ε ,&nbsp;&nbsp; z ~ p<sub>data</sub> ,&nbsp; ε ~ 𝒩(0, I)<span class="why">把数据样本 z 和初始噪声 ε 放上同一条线性概率路径</span></div></div>
+      <div class="math-step"><div class="no">2</div><div class="tx">p<sub>t</sub>(x|z) = 𝒩( t·z , (1−t)²I )<span class="why">均值从 0 移向 z，方差从 I 收缩到 0；端点 p<sub>0</sub>=p<sub>init</sub>，p<sub>1</sub>=δ<sub>z</sub></span></div></div>
+      <div class="math-step"><div class="no">3</div><div class="tx"><span class="accent">U<sub>t</sub><sup>target</sup>(x<sub>t</sub>|z) = <span class="frac"><span class="n">∂x<sub>t</sub></span><span class="d">∂t</span></span> = z − ε</span><span class="why">条件路径的真实速度：一个可以无限采样的监督目标</span></div></div>
+      <div class="math-step"><div class="no">4</div><div class="tx">u<sub>t</sub><sup>target</sup>(x) = 𝔼[ U<sub>t</sub><sup>target</sup>(x<sub>t</sub>|z) <span style="font-size:.8em">|</span> x<sub>t</sub>=x ]<span class="why">边缘速度 = 条件速度对后验 p(z|x) 的期望；学它即可输运边缘分布 p<sub>t</sub></span></div></div>
+    </div>
+  </div>
+  <div class="note"><strong>关键抽象：</strong>生成的本质不是「样本 A 变样本 B」，而是构造每个时刻都正确的概率流。而这套框架的路径坐标只有一个标量 t——这正是我们要打破的限制。</div>
+</div></section>
+
+<!-- ================= 03 GENERALIZE ================= -->
+<section id="generalize" class="section"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 03 · Generalization</span><h2><span>03</span>推广：从一维时间轴到 K−1 维单纯形</h2></div>
+  <div class="takeaway"><span class="tk">TAKEAWAY</span><p>把「端点标签」升级为<b>单纯形坐标 c</b>：K 个分布是 K 个顶点，内部点表示多分布联合状态。路径定义升维后，组合运算自然进入表达域。</p></div>
+  <div class="grid2">
+    <figure class="figure"><span class="role">几何 · 操作总览</span><img src="figures/simplex_paths.png" alt="单纯形上的四类操作路径"><figcaption><b>单纯形上的路径家族：</b>边输运沿棱运动，合流/分流穿过单纯形内部。四类操作共享同一个几何对象、同一个时间参数 t。</figcaption></figure>
+    <div>
+      <div class="math-panel" style="margin-top:0">
+        <div class="math-title">推广后的三个定义</div>
+        <div class="math-steps">
+          <div class="math-step"><div class="no">1</div><div class="tx">Δ<sup>K−1</sup> = { c ∈ ℝ<sup>K</sup> : c<sub>j</sub> ≥ 0 ,&nbsp; Σ<sub>j</sub> c<sub>j</sub> = 1 }<span class="why">概率单纯形：K 个分布的所有凸组合状态</span></div></div>
+          <div class="math-step"><div class="no">2</div><div class="tx">c<sub>t</sub> = (1−t)·c<sub>0</sub> + t·c<sub>1</sub> ∈ Δ<sup>K−1</sup><span class="why">坐标路径：c₀、c₁ 是单纯形中任意两点（不限于顶点）</span></div></div>
+          <div class="math-step"><div class="no">3</div><div class="tx">X<sub>t</sub> = ⟨c<sub>t</sub>, Z⟩ = Σ<sub>j</sub> c<sub>t,j</sub>·z<sub>j</sub><span class="why">数据状态：Z=(z₁,…,z_K) 是 K 个分布的共享潜变量</span></div></div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:16px"><strong>退化检验：</strong>K=2 时 Δ¹ 是线段，c₀=0、c₁=1，整个框架退化为经典两分布 FM——推广是严格超集，不是另起炉灶。</div>
+    </div>
+  </div>
+  <div class="ops">
+    <div class="op"><div class="tag">EDGE · 两点传输</div><h3>A → B</h3><p>沿一条棱的经典输运；c₀=e<sub>A</sub>，c₁=e<sub>B</sub>。</p><div class="mini">e<sub>A</sub> → e<sub>B</sub></div></div>
+    <div class="op"><div class="tag">CONJ · 多合一路径</div><h3>A + B → C</h3><p>从两个实例的联合重心出发，生成目标分布中对应的实例。</p><div class="mini"><span class="frac"><span class="n">e<sub>A</sub>+e<sub>B</sub></span><span class="d">2</span></span> → e<sub>C</sub></div></div>
+    <div class="op"><div class="tag">DISJ · 一分多路径</div><h3>A → B + C</h3><p>从一个实例出发，输运到两个对齐目标实例的联合重心。</p><div class="mini">e<sub>A</sub> → <span class="frac"><span class="n">e<sub>B</sub>+e<sub>C</sub></span><span class="d">2</span></span></div></div>
+  </div>
+  <div class="sim reveal">
+    <div>
+      <svg id="simSvg" viewBox="0 0 420 390" role="img" aria-label="交互式单纯形插值演示">
+        <defs><marker id="sarr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7Z" fill="#d7534b"/></marker></defs>
+        <path d="M90 330 L330 330 L210 80 Z" fill="#f6f9f8" stroke="#174e73" stroke-width="2.5" stroke-linejoin="round"/>
+        <line id="simTrack" x1="90" y1="330" x2="330" y2="330" stroke="#d7534b" stroke-width="2.5" stroke-dasharray="3 5" opacity=".65"/>
+        <circle cx="90" cy="330" r="13" fill="#d7534b"/><text x="72" y="362" font-size="15" font-weight="700" fill="#243444">ring</text>
+        <circle cx="330" cy="330" r="13" fill="#3e8c86"/><text x="312" y="362" font-size="15" font-weight="700" fill="#243444">moons</text>
+        <circle cx="210" cy="80" r="13" fill="#c59a55"/><text x="192" y="60" font-size="15" font-weight="700" fill="#243444">swiss</text>
+        <circle id="simDot" cx="90" cy="330" r="9" fill="#174e73" stroke="#fff" stroke-width="2.5"/>
+        <text x="30" y="35" font-size="12" fill="#8a979d" font-family="monospace">拖动滑块 · 观察坐标路径 c_t</text>
+      </svg>
+    </div>
+    <div>
+      <div class="sim-controls">
+        <button data-op="edge" class="on">A → B</button>
+        <button data-op="conj">A + B → C</button>
+        <button data-op="disj">A → B + C</button>
+        <button class="play" id="simPlay">▶ 播放</button>
+        <span class="sim-t" id="simT">t = 0.00</span>
+      </div>
+      <input type="range" class="sim-slider" id="simSlider" min="0" max="1000" value="0" aria-label="插值时间 t">
+      <div class="wbars">
+        <div class="wbar"><div class="wl"><span>ring 权重 c<sub>t,0</sub></span><span id="w0v">1.00</span></div><div class="wt"><div class="wf" id="w0" style="background:#d7534b"></div></div></div>
+        <div class="wbar"><div class="wl"><span>moons 权重 c<sub>t,1</sub></span><span id="w1v">0.00</span></div><div class="wt"><div class="wf" id="w1" style="background:#3e8c86"></div></div></div>
+        <div class="wbar"><div class="wl"><span>swiss 权重 c<sub>t,2</sub></span><span id="w2v">0.00</span></div><div class="wt"><div class="wf" id="w2" style="background:#c59a55"></div></div></div>
+      </div>
+      <div class="sim-eq" id="simEq"></div>
+      <p style="font-size:13px;color:var(--ink2);margin-top:10px;line-height:1.7">三种操作共用同一条坐标公式 <b style="font-family:var(--math)">c<sub>t</sub> = (1−t)c₀ + t·c₁</b>——变的只是端点 c₀、c₁ 在单纯形中的位置。合流从两个分布的<b>重心</b>出发，分流指向两个目标的<b>重心</b>。</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= 04 METHOD ================= -->
+<section id="method" class="section"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 04 · Method</span><h2><span>04</span>方法：从单纯形路径推出训练目标</h2></div>
+  <div class="takeaway"><span class="tk">TAKEAWAY</span><p>对直线路径求导得到一个关键恒等式：<b>x1 目标 ≡ 真速度</b>。再用 vertex 架构把对称性写进结构——对称性由构造保证，不靠网络去「学」。</p></div>
+  <div class="grid2">
+    <div class="math-panel" style="margin-top:0">
+      <div class="math-title">恒等式：x1 参数化 ≡ linear（四步）</div>
+      <div class="math-steps">
+        <div class="math-step"><div class="no">1</div><div class="tx">⟨c<sub>1</sub>, Z⟩ − X<sub>t</sub> = ⟨c<sub>1</sub> − c<sub>t</sub>, Z⟩<span class="why">X<sub>t</sub>=⟨c<sub>t</sub>,Z⟩，内性移项</span></div></div>
+        <div class="math-step"><div class="no">2</div><div class="tx">c<sub>1</sub> − c<sub>t</sub> = (1−t)·(c<sub>1</sub> − c<sub>0</sub>)<span class="why">代入 c<sub>t</sub>=(1−t)c₀+tc₁</span></div></div>
+        <div class="math-step"><div class="no">3</div><div class="tx"><span class="frac"><span class="n">⟨c<sub>1</sub>,Z⟩ − X<sub>t</sub></span><span class="d">1−t</span></span> = ⟨c<sub>1</sub> − c<sub>0</sub>, Z⟩ = v<sup>*</sup><span class="why">两边同除流时间 (1−t)</span></div></div>
+        <div class="math-step"><div class="no">4</div><div class="tx"><span class="accent">v = <span class="frac"><span class="n">⟨c<sub>1</sub>,Z⟩ − X<sub>t</sub></span><span class="d">1−t</span></span> ≡ v<sup>*</sup></span><span class="why">沿直线路径 x1 恒等于真速度；代码实测偏差 5.2e−05</span></div></div>
+      </div>
+      <div class="proof-strip">朴素残差 v = ⟨c₁,Z⟩ − X<sub>t</sub><span class="arrow">⟹</span><span class="accent">停滞场</span><span class="arrow">⟹</span>x1 修正<span class="arrow">⟹</span><span class="green">一步即精确</span></div>
+    </div>
+    <div>
+      <article class="card teal" style="margin-bottom:18px"><h3>vertex 条件化：对称性进架构</h3>
+        <div class="formula good"><div class="eq"><span class="green">v<sub>θ</sub> = (c<sub>1</sub> − c<sub>0</sub>) · Ẑ<sub>θ</sub>(X<sub>t</sub>, c<sub>t</sub>, t)</span><small>网络只负责恢复实例潜变量 Ẑ；方向由坐标差显式控制</small></div></div>
+        <div class="badge-row"><span class="badge good">c₀=c₁ ⟹ v=0（架构保证）</span><span class="badge good">交换 c₀,c₁ ⟹ v 变号</span></div>
+      </article>
+      <article class="card warn" style="position:relative"><h3>反例：63.2% 停滞天花板</h3>
+        <div class="formula warn"><div class="eq">v = ⟨c<sub>1</sub>,Z⟩ − X<sub>t</sub> &nbsp;⟹&nbsp; <span class="frac"><span class="n">dX<sub>t</sub></span><span class="d">dt</span></span> = z<sub>j</sub> − X<sub>t</sub><small>朴素残差目标是「指向终点」而非「真实速度」</small></div></div>
+        <div class="formula warn"><div class="eq">X<sub>t</sub> = z<sub>j</sub> + e<sup>−t</sup>(x<sub>0</sub> − z<sub>j</sub>) &nbsp;⟹&nbsp; 行程 = 1 − e<sup>−1</sup> = <span class="accent">63.2%</span><small>指数逼近：t=1 时终点落在单纯形内部，欠走 36.8%</small></div></div>
+      </article>
+    </div>
+  </div>
+  <div class="note"><strong>为什么分母必须是流时间 (1−t) 而不是单纯形坐标 (1−c<sub>j</sub>)？</strong> 因为 1−c<sub>j</sub>(t) = (1−t)(1−c<sub>0,j</sub>)：除以坐标会在多分布内部多出 1/(1−c<sub>0,j</sub>) 的缩放（重心处 1.5 倍），只有退化边界 c<sub>0,j</sub>=0 才碰巧相等。<strong>参数收益：</strong>1 个共享网络覆盖 6 条边 + 3 个合流 + 3 个分流，替代 K(K−1)=6 个独立网络。</div>
+</div></section>
+
+<!-- ================= 05 EVIDENCE ================= -->
+<section id="evidence" class="section"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 05 · Evidence</span><h2><span>05</span>实验：可控玩具 + 实例级 ground truth</h2></div>
+  <div class="takeaway"><span class="tk">TAKEAWAY</span><p>ring / moons / swiss 三个分布由<b>同一潜变量 u</b> 参数化——每个样本都有真伙伴，因此我们能检验「实例级绑定」，而不只看边缘分布像不像。</p></div>
+  <div class="grid2">
+    <figure class="figure"><span class="role">数据 · Ground Truth</span><img src="figures/triplets.png" alt="共享潜变量三元组"><figcaption><b>实验设计：</b>同一潜变量 u 生成三个形状中的对应实例（右图连线）。评估时每个生成点都有唯一真伙伴可查——这是随机数据集给不了的严格性。</figcaption></figure>
+    <figure class="figure"><span class="role">动态 · 边输运 A→B</span><img src="figures/edge_0to1.gif" alt="ring→moons 边输运动画"><figcaption><b>边输运 ring → moons（动画）：</b>淡色为源/目标分布，彩色为生成粒子，细线为 ODE 轨迹。粒子沿直线速度场整体流向目标。</figcaption></figure>
+  </div>
+  <div class="grid2" style="margin-top:20px">
+    <figure class="figure"><span class="role">动态 · 合流 A+B→C</span><img src="figures/conj_12to0.gif" alt="moons+swiss→ring 合流动画"><figcaption><b>合流 moons + swiss → ring（动画）：</b>两个源实例的重心作为起点，穿过分水岭到达目标实例。逐对 FM 从原理上无法表达这条路径。</figcaption></figure>
+    <div>
+      <article class="card" style="height:100%"><h3>one-step 诊断：目标直线化的直接证据</h3>
+        <div class="badge-row" style="margin-bottom:10px"><span class="badge">n<sub>integ</sub> = 1</span><span class="badge">单次 Euler 更新</span></div>
+        <p>x1 目标下真速度是<b>常向量</b> ⟨c₁−c₀, Z⟩，理想模型一步即可到位。one-step 实验（n<sub>integ</sub>=1）确认单步生成不退化：边缘形状、实例对应仍然成立。</p>
+        <div class="badge-row"><span class="badge good">闭环：目标几何 → 一步解码</span></div>
+        <p style="margin-top:10px">配套消融：仅改参数化（stall / linear / x1 / exp），其余全部共享。stall 稳定压在 63.2% 天花板上，linear 与 x1 并列最优——<b>参数化是决定性变量</b>。</p>
+      </article>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:20px">
+    <figure class="figure"><span class="role">消融 · 参数化对比</span><img src="figures/ablation_comparison.png" alt="参数化消融对比"><figcaption><b>消融结果：</b>四条柱分别是 stall / linear / x1 / exp。stall 被 63.2% 天花板压住；linear ≡ x1（理论恒等式在实验中闭合），说明收益来自目标几何而非优化技巧。</figcaption></figure>
+    <figure class="figure"><span class="role">训练 · 收敛性</span><img src="figures/loss.png" alt="x1 训练损失曲线"><figcaption><b>训练曲线：</b>20,000 步后 MSE 进入稳定区间；vertex 档含辅助恢复项 λ<sub>rec</sub>·‖Ẑ−Z‖²，收敛平稳无震荡。</figcaption></figure>
+  </div>
+</div></section>
+
+<!-- ================= 06 METRICS ================= -->
+<section id="metrics" class="section"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 06 · Metrics</span><h2><span>06</span>指标体系：每个数字回答一个独立问题</h2></div>
+  <div class="takeaway"><span class="tk">TAKEAWAY</span><p>四个指标分层覆盖：<b>分布到了吗（closure/SW2）→ 实例对上了吗（progress/d_true）→ 路径直不直（L_ratio）→ 循环记不记得（cycle）</b>。</p></div>
+  <div class="grid4">
+    <div class="metric-card"><h4>closure %</h4><div class="def">⟨x̂−x<sub>0</sub>, x<sub>1</sub>−x<sub>0</sub>⟩ / ‖x<sub>1</sub>−x<sub>0</sub>‖²</div><p>生成点向目标推进的比例。<b>100%=完美到达</b>；63.2% 是停滞场的签名。<b>越大越好。</b></p></div>
+    <div class="metric-card" style="border-top-color:var(--teal)"><h4>Sliced-W2</h4><div class="def">SW₂²(p,q) = <span class="frac"><span class="n">1</span><span class="d">M</span></span>Σ<sub>m</sub> W₂²(p#θ<sub>m</sub>, q#θ<sub>m</sub>)</div><p>随机投影到一维后求平均 Wasserstein-2 距离，衡量<b>边缘分布</b>差异。<b>越小越好。</b></p></div>
+    <div class="metric-card" style="border-top-color:var(--red)"><h4>d_true</h4><div class="def">(1/N) Σ<sub>i</sub> ‖x̂<sub>i</sub> − z<sub>target</sub><sup>(u<sub>i</sub>)</sup>‖</div><p>生成点到<b>真伙伴</b>（同一潜变量 u 的对应实例）的平均距离，直接衡量<b>实例级绑定</b>。<b>越小越好。</b></p></div>
+    <div class="metric-card" style="border-top-color:var(--violet)"><h4>cycle ratio</h4><div class="def">‖x̂<sub>A→B→A</sub> − x<sub>A</sub>‖ / ‖x<sub>A</sub>‖</div><p>绕一圈回到出发分布后与自身比较，衡量<b>循环一致性 / 记忆</b>。<b>越小越好。</b></p></div>
+  </div>
+  <div class="hero-num">
+    <div class="hn"><div class="num" data-count="89.74" data-suffix="%">0%</div><div class="lb">closure（独立脚本 x1+vertex）</div><div class="ds">20k steps · 100-step Euler</div></div>
+    <div class="hn"><div class="num" data-count="0.0729" data-dec="4">0</div><div class="lb">Sliced-W2</div><div class="ds">对比 6×独立FM 的 0.0665</div></div>
+    <div class="hn"><div class="num" data-count="0.947" data-dec="3">0</div><div class="lb">progress</div><div class="ds">≈1.0 = 到达真伙伴</div></div>
+    <div class="hn"><div class="num">1/6</div><div class="lb">参数量</div><div class="ds">269,062 vs 1,603,596</div></div>
+  </div>
+  <figure class="figure"><span class="role">路径质量 · 轨迹 vs 最优直线</span><img src="figures/traj_vs_optimal.png" alt="实际 ODE 轨迹与最优直线对比"><figcaption><b>轨迹质量：</b>红色为实际 ODE 轨迹，灰色虚线为最优直线。L_ratio≈1.0 表示实际路径长度几乎等于直线距离——x1 目标把「绕路」压到了极限。</figcaption></figure>
+  <table class="compare">
+    <thead><tr><th>模型</th><th>参数量</th><th>closure</th><th>SW2</th><th>progress</th><th>conj / disj</th></tr></thead>
+    <tbody>
+      <tr><td>simplex-FM（x1 + vertex）</td><td>269,062</td><td class="win">88.85%</td><td>0.0784</td><td>0.942</td><td class="win">✔ 独占</td></tr>
+      <tr><td>独立脚本复现（x1 + vertex）</td><td>—</td><td class="win">89.74%</td><td>0.0729</td><td>0.947</td><td class="win">✔ 独占</td></tr>
+      <tr><td>6 × 独立 per-edge FM</td><td>1,603,596</td><td class="win">90.45%</td><td class="win">0.0665</td><td>0.957</td><td class="no">✘ 原理上不可</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>诚实结论（路演口径）：</strong>只比两两边输运且参数不限时，6 个独立 FM 略优（closure +0.7~1.6pp，SW2 −0.006~0.012）——我们不回避这个差距。但它的优势以 <b>6 倍参数</b>为代价，且 A+B→C / A→B+C 完全不在其表达域。simplex-FM 用一个可组合速度场，以近似边质量换取<b>整个多分布运算空间</b>。</div>
+</div></section>
+
+<!-- ================= 07 IMPACT ================= -->
+<section id="impact" class="section final"><div class="wrap">
+  <div class="sec-head"><span class="kicker">Part 07 · Milestone</span><h2>不是把模型做大，<br>而是把生成问题的维度做对</h2></div>
+  <div class="takeaway" style="background:rgba(255,255,255,.08);border-left-color:#f7d18b"><span class="tk" style="color:#f7d18b">TAKEAWAY</span><p style="color:#eef7f5">循环实验给出最直观的一击：<b style="color:#f7d18b">A→B→C→A 三轮输运后，终点分布与出发分布几乎重合（cycle ratio 0.046）</b>——一个速度场在三个分布间往返而不「失忆」。</p></div>
+  <figure class="figure" style="background:rgba(255,255,255,.94);max-width:660px;margin:0 auto"><span class="role" style="background:var(--red)">循环一致性 · 链式演化</span><img src="figures/chained_overview.png" alt="A→B→C→A 链式演化终点分布"><figcaption style="color:var(--ink2)"><b style="color:var(--blue)">Chained A→B→C→A：</b>灰=出发实例，蓝/绿/红=三轮输运后的终点。红色（回到 ring）与淡红源分布高度重叠——三轮生成后粒子仍记得自己从哪里来。</figcaption></figure>
+  <figure class="figure" style="background:rgba(255,255,255,.94);max-width:880px;margin:26px auto 0"><span class="role" style="background:var(--violet)">真实任务 · 真实数据</span><img src="figures/real_applications.png" alt="真实学术任务：统一弱光分割、弱光增强、掩码条件图生成"><figcaption style="color:var(--ink2)"><b style="color:var(--blue)">从玩具走向真实任务：</b>将同一套单纯形条件化框架用于真实街景数据，统一四类任务——弱光增强（白天↔夜间）、正常光照分割（照片→掩码）、掩码条件图生成（掩码→照片）与跨光照一致性转换。每组自左起：输入图像、参考目标、两列模型生成结果。</figcaption></figure>
+  <div class="final-grid">
+    <div class="final-list">
+      <div><b>数学层：</b>任意 C¹ 单纯形路径输运正确边际（定理已证）；63.2% 停滞天花板刻画了朴素参数化的极限。</div>
+      <div><b>建模层：</b>一个条件速度场统一 edge / conj / disj 三类运算，对称性由 vertex 架构保证。</div>
+      <div><b>证据层：</b>shared-latent 玩具提供实例级 ground truth；检索修复后实例绑定中位排名 0–3 / 500。</div>
+      <div><b>工程层：</b>1/6 参数、一步解码、循环一致——为多模态生成系统提供数学底座。</div>
+    </div>
+    <div class="roadmap"><h3>从三分布走向真实生成系统</h3>
+      <ul>
+        <li>K 个视觉模态：enhanced / lowlight / depth / mask 互生成</li>
+        <li>多条件合成：多输入共同决定输出的受控生成</li>
+        <li>latent simplex：把 z<sub>j</sub> 换成图像 / 视频 latent，结构不变</li>
+        <li>非线性路径：指数时钟闭式积分器，一步解码 d=0.41–1.06</li>
+      </ul>
+    </div>
+  </div>
+  <div class="one-line">一个向量场 · K 个分布 · 从线段到单纯形</div>
+</div></section>
+</main>
+<footer class="footer">Simplex Flow Matching · From pairwise transport to compositional generative dynamics</footer>
+<script>
+/* ---- reading progress ---- */
+const pbar=document.getElementById('pbar');
+addEventListener('scroll',()=>{const h=document.documentElement;pbar.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';},{passive:true});
+/* ---- reveal on scroll (auto-tag) ---- */
+document.querySelectorAll('.figure,.card,.op,.math-panel,.metric-card,.compare,.sim,.hero-num .hn').forEach(el=>el.classList.add('reveal'));
+const revealIO=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');revealIO.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>revealIO.observe(el));
+/* ---- nav highlight ---- */
+const links=[...document.querySelectorAll('.nav a')];
+const navIO=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id));}}),{rootMargin:'-30% 0px -60% 0px'});
+document.querySelectorAll('main > section[id]').forEach(s=>navIO.observe(s));
+/* ---- number count-up ---- */
+const cntIO=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;cntIO.unobserve(e.target);
+  const el=e.target,target=parseFloat(el.dataset.count),dec=+(el.dataset.dec||2),suf=el.dataset.suffix||'';
+  const t0=performance.now();
+  (function tick(now){const p=Math.min((now-t0)/1300,1),ease=1-Math.pow(1-p,3);
+    el.textContent=(target*ease).toFixed(dec)+suf;
+    if(p<1)requestAnimationFrame(tick);})(t0);
+}),{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>cntIO.observe(el));
+/* ---- interactive simplex ---- */
+const V=[[90,330],[330,330],[210,80]];
+const OPS={edge:{c0:[1,0,0],c1:[0,1,0]},conj:{c0:[.5,.5,0],c1:[0,0,1]},disj:{c0:[1,0,0],c1:[0,.5,.5]}};
+let curOp='edge',playing=false,dir=1;
+const $=id=>document.getElementById(id);
+const lerp=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+function setT(t){
+  const op=OPS[curOp],c=lerp(op.c0,op.c1,t);
+  $('simDot').setAttribute('cx',c[0]*V[0][0]+c[1]*V[1][0]+c[2]*V[2][0]);
+  $('simDot').setAttribute('cy',c[0]*V[0][1]+c[1]*V[1][1]+c[2]*V[2][1]);
+  const P0=[op.c0[0]*V[0][0]+op.c0[1]*V[1][0]+op.c0[2]*V[2][0],op.c0[0]*V[0][1]+op.c0[1]*V[1][1]+op.c0[2]*V[2][1]];
+  const P1=[op.c1[0]*V[0][0]+op.c1[1]*V[1][0]+op.c1[2]*V[2][0],op.c1[0]*V[0][1]+op.c1[1]*V[1][1]+op.c1[2]*V[2][1]];
+  const tr=$('simTrack');tr.setAttribute('x1',P0[0]);tr.setAttribute('y1',P0[1]);tr.setAttribute('x2',P1[0]);tr.setAttribute('y2',P1[1]);
+  for(let i=0;i<3;i++){$('w'+i).style.width=(c[i]*100)+'%';$('w'+i+'v').textContent=c[i].toFixed(2);}
+  $('simT').textContent='t = '+t.toFixed(2);
+  $('simEq').innerHTML='X<sub>t</sub> = <b>'+c[0].toFixed(2)+'</b>·z<sub>ring</sub> + <b>'+c[1].toFixed(2)+'</b>·z<sub>moons</sub> + <b>'+c[2].toFixed(2)+'</b>·z<sub>swiss</sub>';
+}
+$('simSlider').addEventListener('input',e=>{if(playing){playing=false;$('simPlay').classList.remove('on');$('simPlay').textContent='▶ 播放';}setT(e.target.value/1000);});
+document.querySelectorAll('.sim-controls button[data-op]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.sim-controls button[data-op]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');curOp=b.dataset.op;setT(+$('simSlider').value/1000);
+}));
+$('simPlay').addEventListener('click',()=>{
+  playing=!playing;$('simPlay').classList.toggle('on',playing);
+  $('simPlay').textContent=playing?'❚❚ 暂停':'▶ 播放';
+  if(playing){const step=()=>{if(!playing)return;
+    let t=+$('simSlider').value/1000+dir*0.008;
+    if(t>=1){t=1;dir=-1;}if(t<=0){t=0;dir=1;}
+    $('simSlider').value=Math.round(t*1000);setT(t);requestAnimationFrame(step);};
+  requestAnimationFrame(step);}
+});
+setT(0);
+</script>
+</body>
+</html>
